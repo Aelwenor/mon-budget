@@ -124,6 +124,21 @@ input.in.big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
 .early .btn{font-size:13px;padding:10px 8px}
 textarea.in{font:inherit;font-size:13px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;min-height:90px;resize:vertical}
 .btn.armed{background:var(--neg);color:#fff}
+.acct,.acct.a0,.acct.a1{background:var(--soft);background:color-mix(in srgb,var(--c) 16%,var(--surface));color:var(--ink)}
+.acct .an::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:6px}
+.pill,.pill.a0,.pill.a1{background:var(--c);color:#fff}
+.chk{border-color:var(--c,var(--muted))}
+.chk:checked{background:var(--c,var(--accent));border-color:var(--c,var(--accent))}
+.sw{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.swb{width:40px;height:40px;border-radius:50%;border:3px solid transparent;background:var(--c);cursor:pointer;padding:0}
+.swb.on{border-color:var(--ink);box-shadow:0 0 0 3px var(--surface) inset}
+.swb:disabled{opacity:.25;cursor:not-allowed}
+.presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.preset{border:1px solid var(--line);border-radius:12px;padding:10px 6px;font:inherit;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:60px}
+.preset span{font-size:11px;font-weight:500}
+input.in.colorin{padding:2px;height:48px;cursor:pointer}
+.pill{font-size:10px}
+@media (max-width:519px){.row{grid-template-columns:44px minmax(0,1fr) 86px 62px 40px}}
 @media (min-width:520px){.card .grid{grid-template-columns:repeat(4,minmax(0,1fr))} .form{grid-template-columns:repeat(4,minmax(0,1fr))} .row{grid-template-columns:52px minmax(0,1fr) 104px 64px 44px}.amtw input{width:92px}}
 @media (prefers-reduced-motion:no-preference){.chip,.tabs button,.btn{transition:background .15s,color .15s}}
 </style>
@@ -151,6 +166,39 @@ const COURT=['Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct
 const SECS=[{k:'revenu',t:'Revenus (salaire, allocations…)'},{k:'fixe',t:'Dépenses fixes'},{k:'variable',t:'Dépenses variables'},{k:'exceptionnelle',t:'Dépenses exceptionnelles'}];
 const LS='mon-budget-v1';
 const uid=()=>Math.random().toString(36).slice(2,10);
+const PAL=['#C2407D','#2F6FB3','#23825A','#B8620F','#7A4FB5','#B5382E','#0F7F8C','#8A5A2B','#4B5D73','#8F7400'];
+const PALN=['Rose','Bleu','Vert','Orange','Violet','Rouge','Turquoise','Brun','Ardoise','Ocre'];
+const PRESETS=[{n:'Rose',bg:'#FBF6F8',ink:'#2B2127'},{n:'Blanc',bg:'#FFFFFF',ink:'#1F1F1F'},{n:'Sable',bg:'#F7F1E6',ink:'#3A2F22'},{n:'Menthe',bg:'#F0F7F3',ink:'#1E2D27'},{n:'Ciel',bg:'#F1F6FB',ink:'#1C2833'},{n:'Nuit',bg:'#1A1418',ink:'#F4EAEF'}];
+const freeColor=accs=>{const u=new Set(accs.map(a=>String(a.color||'').toLowerCase()));return PAL.find(c=>!u.has(c.toLowerCase()))||PAL[accs.length%PAL.length]};
+function fixColors(accs){
+  const used=new Set();
+  accs.forEach(a=>{const c=String(a.color||'').toLowerCase();if(PAL.some(p=>p.toLowerCase()===c)&&!used.has(c)){used.add(c);a.color=c}else a.color=null});
+  accs.forEach(a=>{if(!a.color){const c=PAL.find(p=>!used.has(p.toLowerCase()))||PAL[0];a.color=c;used.add(c.toLowerCase())}});
+}
+const hex2rgb=h=>{h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.substr(i,2),16))};
+const rgb2hex=a=>'#'+a.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+const mixHex=(a,b,t)=>{const x=hex2rgb(a),y=hex2rgb(b);return rgb2hex(x.map((v,i)=>v*(1-t)+y[i]*t))};
+const lum=h=>{const [r,g,b]=hex2rgb(h).map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)});return .2126*r+.7152*g+.0722*b};
+const cssVar=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+function applyTheme(){
+  const st=document.documentElement.style, th=(typeof S!=='undefined'&&S&&S.theme)||{};
+  ['--bg','--surface','--ink','--muted','--line','--soft','--paid','--accent','--accent-ink','--ok','--neg'].forEach(k=>st.removeProperty(k)); st.removeProperty('color-scheme');
+  const msg=document.getElementById('th-msg');
+  if(!th.bg&&!th.ink){if(msg)msg.textContent='';return}
+  const ok=h=>/^#[0-9a-fA-F]{6}$/.test(h||'');
+  const bg=ok(th.bg)?th.bg:cssVar('--bg'), ink=ok(th.ink)?th.ink:cssVar('--ink');
+  if(!ok(bg)||!ok(ink)) return;
+  const dark=lum(bg)<lum(ink);
+  const set=(k,v)=>st.setProperty(k,v);
+  set('--bg',bg); set('--ink',ink);
+  set('--surface',dark?mixHex(bg,'#ffffff',.06):mixHex(bg,'#ffffff',.6));
+  set('--muted',mixHex(ink,bg,.42)); set('--line',mixHex(bg,ink,.14)); set('--paid',mixHex(bg,ink,.06));
+  const acc=dark?'#E86FA6':'#C2407D'; set('--accent',acc); set('--accent-ink',dark?'#2A0F1C':'#FFFFFF'); set('--soft',mixHex(bg,acc,.14));
+  set('--ok',dark?'#5CC98F':'#23825A'); set('--neg',dark?'#F28B80':'#B5382E'); st.colorScheme=dark?'dark':'light';
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute('content',bg));
+  const ratio=(Math.max(lum(bg),lum(ink))+.05)/(Math.min(lum(bg),lum(ink))+.05);
+  if(msg) msg.textContent=ratio<3?'Attention : le texte sera difficile à lire avec ces deux couleurs.':'';
+}
 const fmt=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'});
 const money=n=>fmt.format(Math.round(n*100)/100);
 const num=n=>new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
@@ -161,7 +209,7 @@ function parse(s){s=String(s).replace(/[\s €+−-]/g,'').replace(',','.');con
 function defaults(){
   const it=(name,amount,account,kind,day=null,month='all')=>({id:uid(),name,amount,account,kind,day,month});
   return {v:1,year:new Date().getFullYear(),
-    accounts:[{id:'c1',name:'Compte courant',short:'Courant',start:0},{id:'c2',name:'Compte 2',short:'Compte 2',start:0}],
+    accounts:[{id:'c1',name:'Compte courant',short:'Courant',start:0,color:'#C2407D'},{id:'c2',name:'Compte 2',short:'Compte 2',start:0,color:'#2F6FB3'}],
     items:[
       it('Salaire (exemple)',2000,'c1','revenu',28), it('Loyer (exemple)',700,'c1','fixe',5), it('Électricité (exemple)',60,'c1','fixe',10),
       it('Internet (exemple)',30,'c1','fixe',12), it('Courses (exemple)',300,'c1','variable'), it('Carburant (exemple)',80,'c1','variable')
@@ -173,6 +221,7 @@ function defaults(){
 function normalize(d){
   const b=defaults(); if(!d||typeof d!=='object') return b;
   d.year=+d.year||b.year; if(!Array.isArray(d.accounts)||!d.accounts.length) d.accounts=b.accounts;
+  fixColors(d.accounts); if(!d.theme||typeof d.theme!=='object') d.theme={};
   if(!Array.isArray(d.envelopes)) d.envelopes=b.envelopes;
   if(!Array.isArray(d.plans)) d.plans=[];
   if(!Array.isArray(d.items)) d.items=[]; if(!d.months||typeof d.months!=='object') d.months={};
@@ -240,11 +289,11 @@ async function flush(){
 function rowHtml(l){
   const a=accOf(l.account), i=accIdx(l.account);
   const d=l.day?String(l.day).padStart(2,'0')+'/'+String(cur).padStart(2,'0'):'–';
-  return `<div class="row${l.paid?' paid':''}" data-id="${l.id}" data-src="${l.src}">
+  return `<div class="row${l.paid?' paid':''}" style="--c:${a.color}" data-id="${l.id}" data-src="${l.src}">
     <span class="dt">${d}</span>
     <span class="nm"><span>${esc(l.name)}</span>${l.src==='extra'?`<button class="x" type="button" data-act="delextra" data-id="${l.id}" aria-label="Supprimer ${esc(l.name)}">×</button>`:''}</span>
     <span class="amtw${l.kind==='revenu'?' rev':''}"><input data-act="amt" inputmode="decimal" aria-label="Montant de ${esc(l.name)}" value="${num(l.amount)}"></span>
-    <span class="pill a${i%2}" title="${esc(a.name)}">${esc(a.short||a.name)}</span>
+    <span class="pill" title="${esc(a.name)}">${esc(a.short||a.name)}</span>
     <input type="checkbox" class="chk" data-act="paid" aria-label="${l.kind==='revenu'?'Reçu':'Payé'} : ${esc(l.name)}"${l.paid?' checked':''}>
   </div>`;
 }
@@ -252,7 +301,7 @@ function refreshSummary(){
   const c=compute()[cur]; let tot=0, totPlan=0;
   const cards=S.accounts.map((a,i)=>{
     tot+=c.now[a.id]; totPlan+=c.plan[a.id];
-    return `<div class="acct a${i%2}"><div class="an">${esc(a.name)}</div>
+    return `<div class="acct" style="--c:${a.color}"><div class="an">${esc(a.name)}</div>
       <div class="bal${c.now[a.id]<0?' neg':''}">${money(c.now[a.id])}</div>
       <div class="sub">Début ${money(c.open[a.id])}<br>Fin prévue ${money(c.plan[a.id])}</div></div>`;
   }).join('');
@@ -280,6 +329,7 @@ function renderMonth(){
         <label class="f">Jour<input class="in" id="x-day" inputmode="numeric" placeholder="1-31"></label>
         <label class="f">Compte<select class="in" id="x-acc">${S.accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
         <label class="f">Type<select class="in" id="x-kind"><option value="exceptionnelle">Dépense</option><option value="revenu">Revenu</option></select></label>
+        <p class="sub2 full">L'opération est cochée tout de suite. Décoche-la si elle n'est pas encore passée.</p>
         <button class="btn full" type="button" data-act="addextra">Ajouter</button>
       </div></details>`;
   refreshSummary();
@@ -306,7 +356,8 @@ function accHtml(a){
     <div class="grid">
       <label class="f">Abrégé<input class="in" data-f="short" maxlength="8" value="${esc(a.short)}"></label>
       <label class="f">Solde au 1er janvier €<input class="in" data-f="start" inputmode="decimal" value="${num(a.start)}"></label>
-    </div></div>`;
+    </div>
+    <div class="sw" role="group" aria-label="Couleur du compte">${PAL.map((c,k)=>{const other=S.accounts.some(x=>x.id!==a.id&&String(x.color).toLowerCase()===c.toLowerCase());return `<button type="button" class="swb${String(a.color).toLowerCase()===c.toLowerCase()?' on':''}" style="--c:${c}" data-act="acccolor" data-id="${a.id}" data-c="${c}" aria-label="${PALN[k]}${other?' (déjà utilisée)':''}" aria-pressed="${String(a.color).toLowerCase()===c.toLowerCase()}"${other?' disabled':''}></button>`}).join('')}</div></div>`;
 }
 function renderParam(){
   app.innerHTML=`
@@ -316,6 +367,12 @@ function renderParam(){
       <p class="hint">Chaque mois repart du solde de fin du mois précédent.</p>
       <button class="btn ghost" type="button" data-act="addacc">+ Ajouter un compte</button></section>
     ${SECS.map(s=>{const its=S.items.filter(i=>i.kind===s.k);return `<section class="set"><h2>${s.t}</h2>${its.length?its.map(itemHtml).join(''):'<p class="empty">Rien pour le moment.</p>'}<button class="btn ghost" type="button" data-act="additem" data-k="${s.k}">+ Ajouter</button></section>`}).join('')}
+    <section class="set"><h2>Apparence</h2>
+      <div class="card"><div class="presets">${PRESETS.map((p,i)=>`<button type="button" class="preset" data-act="preset" data-i="${i}" style="background:${p.bg};color:${p.ink}">Aa<span>${p.n}</span></button>`).join('')}</div>
+        <div class="grid"><label class="f">Couleur de fond<input class="in colorin" type="color" data-theme="bg" value="${cssVar('--bg').toLowerCase()}"></label>
+        <label class="f">Couleur du texte<input class="in colorin" type="color" data-theme="ink" value="${cssVar('--ink').toLowerCase()}"></label></div>
+        <p class="sub2" id="th-msg" role="status"></p>
+        <button class="btn ghost" type="button" data-act="themereset" style="margin-top:8px">Revenir aux couleurs d'origine</button></div></section>
     <section class="set"><h2>Sauvegarde</h2>
       <p class="hint">Tes données restent sur cet appareil. Pour les passer sur un autre téléphone : copie-les ici, puis colle-les dans la même case sur l'autre appareil et touche Restaurer.</p>
       <div class="card"><label class="f">Données (texte)<textarea class="in" id="bk-text" rows="4" placeholder="Colle ici des données copiées pour les restaurer"></textarea></label>
@@ -429,6 +486,7 @@ function renderEnv(){
 }
 
 function render(){
+  applyTheme();
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===view)));
   view==='mois'?renderMonth():view==='plans'?renderPlans():view==='env'?renderEnv():renderParam();
 }
@@ -443,7 +501,7 @@ document.addEventListener('click',e=>{
     const name=document.getElementById('x-name').value.trim(); if(!name){document.getElementById('x-name').focus();return}
     const day=parseInt(document.getElementById('x-day').value,10);
     (mdata(cur).extras=mdata(cur).extras||[]).push({id:uid(),name,amount:Math.abs(parse(document.getElementById('x-amt').value)),
-      account:document.getElementById('x-acc').value,day:(day>=1&&day<=31)?day:null,kind:document.getElementById('x-kind').value,paid:false});
+      account:document.getElementById('x-acc').value,day:(day>=1&&day<=31)?day:null,kind:document.getElementById('x-kind').value,paid:true});
     save();renderMonth();
   }
   else if(act==='delextra'){const md=mdata(cur);md.extras=(md.extras||[]).filter(x=>x.id!==t.dataset.id);save();renderMonth()}
@@ -494,7 +552,10 @@ document.addEventListener('click',e=>{
     if(!t.classList.contains('armed')){t.classList.add('armed');t.textContent='Sûr ?';setTimeout(()=>{t.classList.remove('armed');t.textContent='Supprimer'},3000);return}
     S.envelopes=S.envelopes.filter(x=>x.id!==t.dataset.id);save();renderEnv();
   }
-  else if(act==='addacc'){S.accounts.push({id:uid(),name:'Nouveau compte',short:'Compte',start:0});save();renderParam()}
+  else if(act==='addacc'){S.accounts.push({id:uid(),name:'Nouveau compte',short:'Compte',start:0,color:freeColor(S.accounts)});save();renderParam()}
+  else if(act==='acccolor'){const a=S.accounts.find(x=>x.id===t.dataset.id);if(a&&!t.disabled){a.color=t.dataset.c;save();renderParam()}}
+  else if(act==='preset'){const p=PRESETS[+t.dataset.i];S.theme={bg:p.bg,ink:p.ink};save();applyTheme();renderParam()}
+  else if(act==='themereset'){S.theme={};save();applyTheme();renderParam()}
   else if(act==='additem'){S.items.push({id:uid(),name:'',amount:0,account:S.accounts[0].id,kind:t.dataset.k,day:null,month:'all'});save();renderParam();
     const cards=app.querySelectorAll('.card[data-sec="item"]'); const last=[...cards].reverse().find(c=>S.items.find(i=>i.id===c.dataset.id&&i.kind===t.dataset.k));
     if(last){const inp=last.querySelector('[data-f="name"]');inp.focus();try{inp.scrollIntoView({block:'center'})}catch(e){}}}
@@ -502,6 +563,10 @@ document.addEventListener('click',e=>{
     if(!t.classList.contains('armed')){t.classList.add('armed');t.textContent='Sûr ?';setTimeout(()=>{t.classList.remove('armed');t.textContent='Supprimer'},3000);return}
     S.items=S.items.filter(i=>i.id!==t.dataset.id);save();renderParam();
   }
+});
+document.addEventListener('input',e=>{
+  const t=e.target; if(!t.dataset||!t.dataset.theme) return;
+  S.theme=S.theme||{}; S.theme[t.dataset.theme]=t.value; applyTheme(); save();
 });
 document.addEventListener('change',e=>{
   const t=e.target;
